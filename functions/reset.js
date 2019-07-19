@@ -213,7 +213,7 @@ AV.Cloud.define('battleCheckOut', async request => {
             }
             //所有伤害清0,isAtWar设置为false
             city.set('weidmg', 0);
-            city.set('shudmg', 0);
+            city.set('shucdmg', 0);
             city.set('wudmg', 0);
             city.set('huangdmg', 0);
             city.set('isAtWar', false)
@@ -289,11 +289,7 @@ AV.Cloud.define('battleOpen', async request => {
                     city.set('invader', invader);
                     city.set('warPending', 0);
                     city.set('isAtWar', true);
-                    city.save().then(function() {
-                        console.log("战场开启成功!");
-                    }, function(error) {
-                        console.log("战场开启失败!" + error);
-                    });
+                    return city.save();
                 }, function (error) {
                     console.log("国家不存在" + error);
                 });
