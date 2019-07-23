@@ -160,9 +160,14 @@ AV.Cloud.define('battleCheckOut', async request => {
     }
     await battleCheckOut(createQuery, (object) => {
         object.fetch({ include: ['owner','invader']}).then(function (city) {
+            console.log("开始战场清算");
             var invader = city.get('invader');
             var defdmg = city.get('defdmg');
             var offdmg = city.get('offdmg');
+            var cityId = city.get('cityId');
+            var battleId = "battle" + cityId;
+            var invaderId = "invader" + cityId;
+            var defenderId = "defender" + cityId;
 
             //如果进攻方伤害高,设置owner为进攻方
             if (offdmg > defdmg){
@@ -173,15 +178,36 @@ AV.Cloud.define('battleCheckOut', async request => {
             city.set('offdmg', 0);
             city.set('isAtWar', false);
             city.unset('invader');
-            //call function 重新计算国家可以进攻的地区(按照相邻城市)
-            return city.save().then(function(res){
-                console.log("战场结算:城池信息更新完毕" + res);
-            },function(error){
-                console.log("战场结算:城池信息保存失败" + error);
+
+            //TODO call function 重新计算国家可以进攻的地区(按照相邻城市)
+
+            //重置战场排行榜
+            AV.Cloud.run('resetLeaderBoard', {
+                leaderboardName: battleId,
+            }).then(function(data) {
+                AV.Cloud.run('resetLeaderBoard', {
+                    leaderboardName: invaderId,
+                }).then(function(data) {
+                    AV.Cloud.run('resetLeaderBoard', {
+                        leaderboardName: defenderId,
+                    }).then(function(data) {
+                        return city.save().then(function(res){
+                            console.log("战场结算:城池信息更新完毕" + res);
+                        },function(error){
+                            console.log("战场结算:城池信息保存失败" + error);
+                        });
+                    }, function(error) {
+                        console.log("防守排行榜重置失败"+error);
+                    });
+                }, function(error) {
+                    console.log("进攻排行榜重置失败"+error);
+                });
+            }, function(error) {
+                console.log("战场排行榜重置失败"+error);
             });
         }, function (error) {
             console.log("城池获取失败" + error);
-        });
+        });         //end of city fetch
 
     //TODO return performUpdate的promise
     return new Promise(function(resolve, reject) {
@@ -194,6 +220,7 @@ AV.Cloud.define('battleCheckOut', async request => {
     });
     console.log('战场清算全部完毕')
 });
+
 AV.Cloud.define('battleOpen', async request => {
     const createQuery = () => {
         return new AV.Query(cityObj).notEqualTo('warPending', null)
@@ -321,6 +348,11 @@ AV.Cloud.define('resetLeaderBoard', function(request) {
         .then(function(leaderboard) {
             // 重置成功
             console.log("重置排行榜" + leaderboardName + "成功");
-        }).catch(console.error);
+        }).catch(function(error) {
+        console.log("重置排行榜" + leaderboardName + "失败" + error);
+    });
 });
+
+
+
 
