@@ -99,11 +99,15 @@ function workTrainCountReset(createQuery, performUpdate, options = {}) {
 
 //battleCheckOutIn整合了battleCheckOut, battleOpen
 const cityObj = AV.Object.extend('city');
-
 AV.Cloud.define('battleCheckOutIn', async request => {
-    battleCheckOut.then(function(res){
-        console.log(res);
-        battleOpen();
+    AV.Cloud.run('battleCheckOut').then(function(data) {
+        AV.Cloud.run('battleOpen').then(function(data){
+            console.log("battleCheckOutIn结算完成")
+        }, function(error) {
+            console.log("battleOpen运行失败");
+        });
+    }, function(error) {
+        console.log("battleCheckOut运行失败");
     });
 });
 //更新battleCheckOut, battleOpen
@@ -111,7 +115,6 @@ AV.Cloud.define('battleCheckOut', async request => {
     const createQuery = () => {
         return new AV.Query(cityObj).equalTo('isAtWar', true)
     }
-
     await battleCheckOut(createQuery, (object) => {
         var battleId;
         var invaderId;
@@ -141,7 +144,7 @@ AV.Cloud.define('battleCheckOut', async request => {
         }).then(function(){     //修改排行榜
             return AV.Cloud.run('resetLeaderBoard', {leaderboardName: battleId,});
         }).then(function(){
-                return AV.Cloud.run('resetLeaderBoard', {leaderboardName: invaderId,});
+            return AV.Cloud.run('resetLeaderBoard', {leaderboardName: invaderId,});
         }).then(function(){
             return AV.Cloud.run('resetLeaderBoard', {leaderboardName: defenderId,});
         });
@@ -232,38 +235,73 @@ function battleCheckOut(createQuery, performUpdate, options = {}) {
     }
     return next()
 }
-
 //批量创建排行榜
 AV.Cloud.define('createLeaderBoard', function(request) {
     var i;
     var leaderboardName;
-    for (i=1; i <=60; i++){
-        leaderboardName = "defender" + i;
-        AV.Leaderboard.createLeaderboard({
-            statisticName: leaderboardName,
-            order: AV.LeaderboardOrder.DESCENDING,
-            updateStrategy: AV.LeaderboardUpdateStrategy.SUM,
-            versionChangeInterval: AV.LeaderboardVersionChangeInterval.NEVER,
-        }, { useMasterKey: true }).then(function(leaderboard) {
-            // 创建成功得到 leaderboard 实例
-            console.log("排行榜" + leaderboardName+ "创建成功");
-        }).catch(console.error);
+    for (i=1; i <= 60; i++){
+        (function(ind) {
+                setTimeout(function(){
+                    leaderboardName = "defender" + i;
+                    AV.Leaderboard.getLeaderboard(leaderboardName).then(function(res){
+                        console.log("排行榜已存在,无需新建");
+                    },function(err){
+                        AV.Leaderboard.createLeaderboard({
+                            statisticName: leaderboardName,
+                            order: AV.LeaderboardOrder.DESCENDING,
+                            updateStrategy: AV.LeaderboardUpdateStrategy.SUM,
+                            versionChangeInterval: AV.LeaderboardVersionChangeInterval.NEVER,
+                        }, { useMasterKey: true }).then(function(leaderboard) {
+                            // 创建成功得到 leaderboard 实例
+                            console.log("排行榜" + leaderboardName+ "创建成功");
+                        }).catch(console.error);
+                    });
+                }, 1000 * ind);
+        })(i);
     }
 
-    for (i=1; i <=60; i++){
-        leaderboardName = "invader" + i;
-        AV.Leaderboard.createLeaderboard({
-            statisticName: leaderboardName,
-            order: AV.LeaderboardOrder.DESCENDING,
-            updateStrategy: AV.LeaderboardUpdateStrategy.SUM,
-            versionChangeInterval: AV.LeaderboardVersionChangeInterval.NEVER,
-        }, { useMasterKey: true }).then(function(leaderboard) {
-            // 创建成功得到 leaderboard 实例
-            console.log("排行榜" + leaderboardName+ "创建成功");
-        }).catch(console.error);
+    for (i=1; i <= 60; i++){
+        (function(ind) {
+            setTimeout(function(){
+                leaderboardName = "invader" + i;
+                AV.Leaderboard.getLeaderboard(leaderboardName).then(function(res){
+                    console.log("排行榜已存在,无需新建");
+                },function(err){
+                    AV.Leaderboard.createLeaderboard({
+                        statisticName: leaderboardName,
+                        order: AV.LeaderboardOrder.DESCENDING,
+                        updateStrategy: AV.LeaderboardUpdateStrategy.SUM,
+                        versionChangeInterval: AV.LeaderboardVersionChangeInterval.NEVER,
+                    }, { useMasterKey: true }).then(function(leaderboard) {
+                        // 创建成功得到 leaderboard 实例
+                        console.log("排行榜" + leaderboardName+ "创建成功");
+                    }).catch(console.error);
+                });
+            }, 1000 * ind + 60000);
+        })(i);
     }
+        for (i=1; i <= 60; i++){
+            (function(ind) {
+                setTimeout(function(){
+                    leaderboardName = "battle" + i;
+                    AV.Leaderboard.getLeaderboard(leaderboardName).then(function(res){
+                        console.log("排行榜已存在,无需新建");
+                    },function(err){
+                        AV.Leaderboard.createLeaderboard({
+                            statisticName: leaderboardName,
+                            order: AV.LeaderboardOrder.DESCENDING,
+                            updateStrategy: AV.LeaderboardUpdateStrategy.SUM,
+                            versionChangeInterval: AV.LeaderboardVersionChangeInterval.NEVER,
+                        }, { useMasterKey: true }).then(function(leaderboard) {
+                            // 创建成功得到 leaderboard 实例
+                            console.log("排行榜" + leaderboardName+ "创建成功");
+                        }).catch(console.error);
+                    });
+                }, 1000 * ind + 120000);
+            })(i);
+        }
 });
-//手动重置排行榜
+//手动重置排行榜, params.leaderboardName
 AV.Cloud.define('resetLeaderBoard', function(request) {
     const leaderboardName = request.params.leaderboardName || "battle60"
     var leaderboard = AV.Leaderboard.createWithoutData(leaderboardName);
@@ -276,158 +314,3 @@ AV.Cloud.define('resetLeaderBoard', function(request) {
         console.log(error);
     });
 });
-
-
-
-
-//已弃用 每个双整点更新work，train，warReset
-AV.Cloud.define('canWorkReset', async request => {
-    const canWork = request.params.canWork || true
-    const createQuery = () => {
-        return new AV.Query(User).notEqualTo('canWork', canWork)
-    }
-    await canWorkReset(createQuery, (object) => {
-        console.log('performUpdate on canWork for', object.id)
-        object.set('canWork', canWork)
-        return object.save()
-    })
-    console.log('canWork update finished')
-})
-AV.Cloud.define('canTrainReset', async request => {
-    const canTrain = request.params.canTrain || true
-    const createQuery = () => {
-        return new AV.Query(User).notEqualTo('canTrain', canTrain)
-    }
-    await canTrainReset(createQuery, (object) => {
-        console.log('performUpdate on canTrain for', object.id)
-        object.set('canTrain', canTrain)
-        return object.save()
-    })
-    console.log('canTrain update finished')
-})
-function canWorkReset(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-                return Promise.map(results, (object) => {
-                    return performUpdate(object).catch( err => {
-                        if (ignoreErrors) {
-                            console.error('ignored', err)
-                        } else {
-                            throw err
-                        }
-                    })
-                }, {concurrency}).then(next)
-            }
-        })
-    }
-
-    return next()
-}
-function canTrainReset(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-                return Promise.map(results, (object) => {
-                    return performUpdate(object).catch( err => {
-                        if (ignoreErrors) {
-                            console.error('ignored', err)
-                        } else {
-                            throw err
-                        }
-                    })
-                }, {concurrency}).then(next)
-            }
-        })
-    }
-
-    return next()
-}
-//已弃用 每天24点countReset
-AV.Cloud.define('workCountReset', async request => {
-    const workCount = request.params.workCount || 0
-    const createQuery = () => {
-        return new AV.Query(User).notEqualTo('workCount', workCount)
-    }
-    await workCountReset(createQuery, (object) => {
-        console.log('performUpdate on workCount for', object.id)
-        object.set('workCount', 0)
-        return object.save()
-    })
-    console.log('workCount update finished')
-})
-AV.Cloud.define('trainCountReset', async request => {
-    const trainCount = request.params.trainCount || 0
-    const createQuery = () => {
-        return new AV.Query(User).notEqualTo('trainCount', trainCount)
-    }
-    await trainCountReset(createQuery, (object) => {
-        console.log('performUpdate on trainCount for', object.id)
-        object.set('trainCount', trainCount)
-        return object.save()
-    })
-    console.log('trainCount update finished')
-})
-function workCountReset(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-                return Promise.map(results, (object) => {
-                    return performUpdate(object).catch( err => {
-                        if (ignoreErrors) {
-                            console.error('ignored', err)
-                        } else {
-                            throw err
-                        }
-                    })
-                }, {concurrency}).then(next)
-            }
-        })
-    }
-
-    return next()
-}
-function trainCountReset(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-                return Promise.map(results, (object) => {
-                    return performUpdate(object).catch( err => {
-                        if (ignoreErrors) {
-                            console.error('ignored', err)
-                        } else {
-                            throw err
-                        }
-                    })
-                }, {concurrency}).then(next)
-            }
-        })
-    }
-
-    return next()
-}
-
