@@ -314,3 +314,78 @@ AV.Cloud.define('resetLeaderBoard', function(request) {
         console.log(error);
     });
 });
+
+//每天12点和24点 更新魏蜀吴黄巾的可宣战城池
+AV.Cloud.define('declarableCities',function(request) {
+    //清空所有可宣战城池信息
+    var query = new AV.Query('declarableCities');
+    query.find().then(function (countries) {
+        var countryProceeded = 0;
+         countries.forEach(function(country){
+            country.set('declarables', []);
+            countryProceeded++;
+            if (countryProceeded === 4){
+                AV.Object.saveAll(countries).then(async function(countries){
+                    console.log("所有国家的可宣战城池已重置");
+
+                    var weiguo = AV.Object.createWithoutData('declarableCities', '5d654f9833eec30008f15823');
+                    var shuguo = AV.Object.createWithoutData('declarableCities', '5d6551ac8431620009ac4435');
+                    var wuguo = AV.Object.createWithoutData('declarableCities', '5d6551afe5f7b200088d3f31');
+                    var huangjin = AV.Object.createWithoutData('declarableCities', '5d6551b626add70008bca922');
+
+                    var weiArray = await AV.Cloud.run("findDeclarables", {countryName: 'weiguo'});
+                    var shuArray = await AV.Cloud.run("findDeclarables", {countryName: 'shuguo'});
+                    var wuArray = await AV.Cloud.run("findDeclarables", {countryName: 'wuguo'});
+                    var huangArray = await AV.Cloud.run("findDeclarables", {countryName: 'huangjin'});
+
+                    console.log("weiArray: " + weiArray);
+                    console.log("shuArray: " + shuArray);
+                    console.log("wuArray: " + wuArray);
+                    console.log("huangArray: " + huangArray);
+                    weiguo.addUnique('declarables', weiArray);
+                    shuguo.addUnique('declarables', shuArray);
+                    wuguo.addUnique('declarables', wuArray);
+                    huangjin.addUnique('declarables', huangArray);
+
+                    //保存所有
+                    Promise.all([weiguo.save(), wuguo.save(), shuguo.save(), huangjin.save()]).then(function(){
+                        console.log("所有国家的可选战城池保存完毕");
+                    });
+                });
+            }
+        });
+    });
+});
+
+AV.Cloud.define( "findDeclarables",async function(request){
+    var countryCities = [];
+    var countryName = request.params.countryName;
+    //获取国家obj
+    var countryObj;
+    var countryQuery = new AV.Query('country');
+    countryQuery.equalTo('name', countryName);
+    countryCities = await countryQuery.find().then(async function (countries) {
+        countryObj = countries[0];
+
+        //通过国家obj获取城池列表
+        var cityQuery = new AV.Query('city');
+        cityQuery.equalTo('owner', countryObj);
+        return await cityQuery.find().then(async function (cities) {
+            for (const city of cities) {
+                var mapQuery = new AV.Query('map');
+                // 查询所有src是city的数据
+                mapQuery.equalTo('src', city);
+                await mapQuery.find().then(async function(maps){
+                    for (const map of maps) {
+                        await countryCities.push(map.get("destCity"));
+                        console.log("push城市: " + map.get("destCity"))
+                    };
+                });
+            };
+            return new Promise(resolve => {resolve(countryCities);});
+        });
+    });
+
+    console.log(countryName + " 的可宣战Cities为 : " + countryCities);
+    return countryCities;
+});
