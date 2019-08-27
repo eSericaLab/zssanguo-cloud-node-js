@@ -50,7 +50,6 @@ function canWorkTrainWarReset(createQuery, performUpdate, options = {}) {
     return next()
 }
 
-
 // workTrainCountReset整合了workCountReset，trainCountReset
 AV.Cloud.define('workTrainCountReset', async request => {
     const createQuery = () => {
@@ -95,7 +94,6 @@ function workTrainCountReset(createQuery, performUpdate, options = {}) {
 
     return next()
 }
-
 
 //battleCheckOutIn整合了battleCheckOut, battleOpen
 const cityObj = AV.Object.extend('city');
@@ -318,7 +316,7 @@ AV.Cloud.define('resetLeaderBoard', function(request) {
 //每天12点和24点 更新魏蜀吴黄巾的可宣战城池
 AV.Cloud.define('declarableCities',function(request) {
     //清空所有可宣战城池信息
-    var query = new AV.Query('declarableCities');
+    var query = new AV.Query('country');
     query.find().then(function (countries) {
         var countryProceeded = 0;
          countries.forEach(function(country){
@@ -328,10 +326,10 @@ AV.Cloud.define('declarableCities',function(request) {
                 AV.Object.saveAll(countries).then(async function(countries){
                     console.log("所有国家的可宣战城池已重置");
 
-                    var weiguo = AV.Object.createWithoutData('declarableCities', '5d654f9833eec30008f15823');
-                    var shuguo = AV.Object.createWithoutData('declarableCities', '5d6551ac8431620009ac4435');
-                    var wuguo = AV.Object.createWithoutData('declarableCities', '5d6551afe5f7b200088d3f31');
-                    var huangjin = AV.Object.createWithoutData('declarableCities', '5d6551b626add70008bca922');
+                    var weiguo = AV.Object.createWithoutData('country', '5d2d9dc14415dc00089bd0fe');
+                    var shuguo = AV.Object.createWithoutData('country', '5d2d9dbd5dfe8c00082f979f');
+                    var wuguo = AV.Object.createWithoutData('country', '5d2d9dc54415dc00089bd114');
+                    var huangjin = AV.Object.createWithoutData('country', '5d2d9dc95dfe8c00082f97c8');
 
                     var weiArray = await AV.Cloud.run("findDeclarables", {countryName: 'weiguo'});
                     var shuArray = await AV.Cloud.run("findDeclarables", {countryName: 'shuguo'});
@@ -375,10 +373,16 @@ AV.Cloud.define( "findDeclarables",async function(request){
                 var mapQuery = new AV.Query('map');
                 // 查询所有src是city的数据
                 mapQuery.equalTo('src', city);
+                mapQuery.include(['dest.owner']);
                 await mapQuery.find().then(async function(maps){
                     for (const map of maps) {
-                        await countryCities.push(map.get("destCity"));
-                        console.log("push城市: " + map.get("destCity"))
+                        if ((map.get("dest").get("owner").get("name") !== countryName) && (map.get("dest").get("warPending") === undefined)){
+    /*                        console.log("ownerName " + map.get("dest").get("owner").get("name"));
+                            console.log("countryName " + countryName);
+                            console.log("warPending " + map.get("dest").get("warPending"));*/
+                            await countryCities.push(map.get("destCity"));
+                            // console.log(countryName + " push城市: " + map.get("destCity"))
+                        }
                     };
                 });
             };
