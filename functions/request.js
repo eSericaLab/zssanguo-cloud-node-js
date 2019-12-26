@@ -29,18 +29,18 @@ AV.Cloud.define("trade", async request => {
         // 检查买家卖家是否为同一人
         if (owner.getUsername() === trader.getUsername()){
             console.log("买家卖家为同一人,终止交易");
-            return reject("买家卖家为同一人,终止交易");
+            return Promise.reject("买家卖家为同一人,终止交易");
         }
         //检查单价是否为正数
         if (price <= 0){
             console.log("价格小于等于0,终止交易");
-            return reject("价格小于等于0,终止交易");
+            return Promise.reject("价格小于等于0,终止交易");
         }
 
         //检查货物是否足够
         if (inventory < amount){
             console.log("库存不足以满足交易量");
-            return reject("库存不足以满足交易量");
+            return Promise.reject("库存不足以满足交易量");
         }
 
         //修改报单
@@ -71,9 +71,6 @@ AV.Cloud.define("trade", async request => {
     }).then(function(){
         console.log("报单,报单主人,交易人更新完毕!");
         return Promise.resolve("报单,报单主人,交易人更新完毕!");
-    }, function(){
-        console.log("报单,报单主人,交易人更新失败!");
-        return Promise.reject("报单,报单主人,交易人更新失败!");
     });
 });
 
