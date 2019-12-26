@@ -1,9 +1,12 @@
 const AV = require('leanengine')
 const Promise = require('bluebird')
-    
-// canWorkTrainWarReset整合了canWorkReset，canTrainReset，canWarReset
-const User = AV.Object.extend('_User')
+
+const User = AV.Object.extend('_User');
+const cityObj = AV.Object.extend('city');
+
+// canWorkTrainWarReset 重置每日任务状态("可工作","可训练","可战斗")
 AV.Cloud.define('canWorkTrainWarReset', async request => {
+    console.log("开始执行canWorkTrainWarReset任务");
     const createQuery = () => {
         var canWorkQuery = new AV.Query(User);
         canWorkQuery.equalTo('canWork', false);
@@ -16,42 +19,17 @@ AV.Cloud.define('canWorkTrainWarReset', async request => {
         return AV.Query.or(canWorkQuery, canTrainQuery,canWarQuery);
     }
     await canWorkTrainWarReset(createQuery, (object) => {
-        console.log('reset canWorkTrainWar to true for', object.id)
+        console.log('对' + object.getUsername()+ "执行每日任务状态重置");
         object.set('canWork', true);
         object.set('canTrain', true);
         object.set('canWar', true);
         return object.save();
-    })
-    console.log('canWorkTrainWar reset completed')
-})
-function canWorkTrainWarReset(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-                return Promise.map(results, (object) => {
-                    return performUpdate(object).catch( err => {
-                        if (ignoreErrors) {
-                            console.error('ignored', err)
-                        } else {
-                            throw err
-                        }
-                    })
-                }, {concurrency}).then(next)
-            }
-        })
-    }
-
-    return next()
-}
-
-// workTrainCountReset整合了workCountReset，trainCountReset
+    });
+    console.log('每日任务状态重置完毕!')
+});
+// workTrainCountReset 重置每日工作训练次数
 AV.Cloud.define('workTrainCountReset', async request => {
+    console.log("开始执行workTrainCountReset任务");
     const createQuery = () => {
         var workCountQuery = new AV.Query(User);
         workCountQuery.notEqualTo('workCount', 0);
@@ -62,57 +40,34 @@ AV.Cloud.define('workTrainCountReset', async request => {
         return AV.Query.or(workCountQuery, trainCountQuery);
     }
     await workTrainCountReset(createQuery, (object) => {
-        console.log('reset workTrainCount to 0 for', object.id)
+        console.log('对' + object.getUsername()+ "执行每日工作训练次数重置");
         object.set('workCount', 0);
         object.set('trainCount', 0);
         return object.save();
     })
-    console.log('workTrainCount reset completed')
+    console.log('每日工作训练次数重置完毕!')
 })
-function workTrainCountReset(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-                return Promise.map(results, (object) => {
-                    return performUpdate(object).catch( err => {
-                        if (ignoreErrors) {
-                            console.error('ignored', err)
-                        } else {
-                            throw err
-                        }
-                    })
-                }, {concurrency}).then(next)
-            }
-        })
-    }
-
-    return next()
-}
 
 //battleCheckOutIn整合了battleCheckOut, battleOpen
-const cityObj = AV.Object.extend('city');
-AV.Cloud.define('battleCheckOutIn', async request => {
-    AV.Cloud.run('battleCheckOut').then(function(data) {
-        AV.Cloud.run('battleOpen').then(function(data){
+AV.Cloud.define('battleCheckOutIn', async () => {
+    AV.Cloud.run('battleCheckOut').then(function() {
+        AV.Cloud.run('battleOpen').then(function(){
             console.log("battleCheckOutIn结算完成")
         }, function(error) {
             console.log("battleOpen运行失败");
+            console.log(error);
         });
     }, function(error) {
         console.log("battleCheckOut运行失败");
+        console.log(error);
     });
 });
-//更新battleCheckOut, battleOpen
+//battleCheckOut 战场清算
 AV.Cloud.define('battleCheckOut', async request => {
+    console.log("开始执行battleCheckOut任务");
     const createQuery = () => {
-        return new AV.Query(cityObj).equalTo('isAtWar', true)
-    }
+        return new AV.Query(cityObj).equalTo('isAtWar', true);
+    };
     await battleCheckOut(createQuery, (object) => {
         var battleId;
         var invaderId;
@@ -138,26 +93,33 @@ AV.Cloud.define('battleCheckOut', async request => {
             city.set('offdmg', 0);
             city.set('isAtWar', false);
             city.unset('invader');
+            console.log("重置"+cityName+"的进攻伤害,防御伤害,战争状态,所属国家,进攻方");
             return city.save();
         }).then(function(){     //修改排行榜
+            console.log(battleId + "排行榜执行更新");
             return AV.Cloud.run('resetLeaderBoard', {leaderboardName: battleId,});
         }).then(function(){
+            console.log(invaderId + "排行榜执行更新");
             return AV.Cloud.run('resetLeaderBoard', {leaderboardName: invaderId,});
         }).then(function(){
+            console.log(defenderId + "排行榜执行更新");
+            console.log(cityName+'战场清算'+"完毕");
             return AV.Cloud.run('resetLeaderBoard', {leaderboardName: defenderId,});
         });
-        console.log('战场清算'+battleId+" "+ invaderId+ " "+ defenderId+" "+cityName+"完毕");
     });
     return new Promise(resolve => {
-       resolve('战场清算全部完毕');
+       resolve('全部战场清算完毕全部完毕');
     });
 });
+//battleOpen 战场开启
 AV.Cloud.define('battleOpen', async request => {
+    console.log("开始执行battleOpen任务");
     const createQuery = () => {
         return new AV.Query(cityObj).notEqualTo('warPending', null)
     };
     await battleOpen(createQuery, (object) => {
         return object.fetch({ include: ['owner','warPending']}).then(function (city) {
+            console.log("开始开启"+city.get("name")+"战场");
             //获取待进攻方信息
             var invader = city.get('warPending');
             var invaderName = invader.get('name');
@@ -170,69 +132,30 @@ AV.Cloud.define('battleOpen', async request => {
                 city.set('invader', invader);
                 city.unset('warPending');
                 city.set('isAtWar', true);
+                console.log(city.get("name")+"战场的进攻方,战斗待命方,战争状态设置完毕");
+            }else{
+                return new Promise(reject => {
+                    reject('进攻方和防守方重复,停止执行');
+                });
             }
+
             return city.save().then(function(res){
-                    console.log("battleOpen:城池信息保存成功");
+                    console.log(city.get("name")+"战场开启成功");
                 },function(err){
-                    console.log("battleOpen:城池信息保存失败");
+                    console.log(city.get("name")+"战场开启失败");
                     console.log(err);
                 }
             );
         }, function (error) {
-            console.log("battleOpen:城池信息获取失败");
+            console.log("战场开启:城池信息获取失败");
             console.log(error);
         });
 });
-    console.log('战场开启全部完毕');
+    return new Promise(resolve => {
+        resolve('战场开启全部完毕');
+    });
 });
-function battleOpen(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
 
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-            return Promise.map(results, (object) => {
-                return performUpdate(object).catch( err => {
-                    if (ignoreErrors) {
-                        console.error('ignored', err)
-                    } else {
-                        throw err
-                    }
-                })
-        }, {concurrency}).then(next)
-        }
-    })
-    }
-    return next()
-}
-function battleCheckOut(createQuery, performUpdate, options = {}) {
-    var batchLimit = options.batchLimit || 1000
-    var concurrency = options.concurrencyLimit || 3
-    var ignoreErrors = options.ignoreErrors
-
-    function next() {
-        var query = createQuery()
-
-        return query.limit(batchLimit).find().then( results => {
-            if (results.length > 0) {
-            return Promise.map(results, (object) => {
-                return performUpdate(object).catch( err => {
-                    if (ignoreErrors) {
-                        console.error('ignored', err)
-                    } else {
-                        throw err
-                    }
-                })
-        }, {concurrency}).then(next)
-        }
-    })
-    }
-    return next()
-}
 //批量创建排行榜
 AV.Cloud.define('createLeaderBoard', function(request) {
     var i;
@@ -313,8 +236,9 @@ AV.Cloud.define('resetLeaderBoard', function(request) {
     });
 });
 
-//每天12点和24点 更新魏蜀吴黄巾的可宣战城池
+//declarableCities 每天12点和24点 更新魏蜀吴黄巾的可宣战城池
 AV.Cloud.define('declarableCities',function(request) {
+    console.log("开始执行declarableCities任务");
     //清空所有可宣战城池信息
     var query = new AV.Query('country');
     query.find().then(function (countries) {
@@ -324,7 +248,7 @@ AV.Cloud.define('declarableCities',function(request) {
             countryProceeded++;
             if (countryProceeded === 4){
                 AV.Object.saveAll(countries).then(async function(countries){
-                    console.log("所有国家的可宣战城池已重置");
+                    console.log("开始重置各个国家的可宣战城池");
 
                     var weiguo = AV.Object.createWithoutData('country', '5d2d9dc14415dc00089bd0fe');
                     var shuguo = AV.Object.createWithoutData('country', '5d2d9dbd5dfe8c00082f979f');
@@ -336,10 +260,6 @@ AV.Cloud.define('declarableCities',function(request) {
                     var wuArray = await AV.Cloud.run("findDeclarables", {countryName: 'wuguo'});
                     var huangArray = await AV.Cloud.run("findDeclarables", {countryName: 'huangjin'});
 
-                    console.log("weiArray: " + weiArray);
-                    console.log("shuArray: " + shuArray);
-                    console.log("wuArray: " + wuArray);
-                    console.log("huangArray: " + huangArray);
                     weiguo.addUnique('declarables', weiArray);
                     shuguo.addUnique('declarables', shuArray);
                     wuguo.addUnique('declarables', wuArray);
@@ -347,14 +267,14 @@ AV.Cloud.define('declarableCities',function(request) {
 
                     //保存所有
                     Promise.all([weiguo.save(), wuguo.save(), shuguo.save(), huangjin.save()]).then(function(){
-                        console.log("所有国家的可选战城池保存完毕");
+                        console.log("各个国家的可宣战城池重置完毕");
                     });
                 });
             }
         });
     });
 });
-
+//findDeclarables 根据国家,寻找可宣战城池
 AV.Cloud.define( "findDeclarables",async function(request){
     var countryCities = [];
     var countryName = request.params.countryName;
@@ -393,3 +313,103 @@ AV.Cloud.define( "findDeclarables",async function(request){
     console.log(countryName + " 的可宣战Cities为 : " + countryCities);
     return countryCities;
 });
+
+
+function battleOpen(createQuery, performUpdate, options = {}) {
+    var batchLimit = options.batchLimit || 1000
+    var concurrency = options.concurrencyLimit || 3
+    var ignoreErrors = options.ignoreErrors
+
+    function next() {
+        var query = createQuery()
+
+        return query.limit(batchLimit).find().then( results => {
+            if (results.length > 0) {
+                return Promise.map(results, (object) => {
+                    return performUpdate(object).catch( err => {
+                        if (ignoreErrors) {
+                            console.error('ignored', err)
+                        } else {
+                            throw err
+                        }
+                    })
+                }, {concurrency}).then(next)
+            }
+        })
+    }
+    return next()
+}
+function battleCheckOut(createQuery, performUpdate, options = {}) {
+    var batchLimit = options.batchLimit || 1000
+    var concurrency = options.concurrencyLimit || 3
+    var ignoreErrors = options.ignoreErrors
+
+    function next() {
+        var query = createQuery()
+
+        return query.limit(batchLimit).find().then( results => {
+            if (results.length > 0) {
+                return Promise.map(results, (object) => {
+                    return performUpdate(object).catch( err => {
+                        if (ignoreErrors) {
+                            console.error('ignored', err)
+                        } else {
+                            throw err
+                        }
+                    })
+                }, {concurrency}).then(next)
+            }
+        })
+    }
+    return next()
+}
+function workTrainCountReset(createQuery, performUpdate, options = {}) {
+    var batchLimit = options.batchLimit || 1000;
+    var concurrency = options.concurrencyLimit || 3;
+    var ignoreErrors = options.ignoreErrors;
+
+    function next() {
+        var query = createQuery();
+
+        return query.limit(batchLimit).find().then( results => {
+            if (results.length > 0) {
+                return Promise.map(results, (object) => {
+                    return performUpdate(object).catch( err => {
+                        if (ignoreErrors) {
+                            console.error('ignored', err);
+                        } else {
+                            throw err;
+                        }
+                    })
+                }, {concurrency}).then(next);
+            }
+        })
+    }
+
+    return next()
+}
+function canWorkTrainWarReset(createQuery, performUpdate, options = {}) {
+    var batchLimit = options.batchLimit || 1000
+    var concurrency = options.concurrencyLimit || 3
+    var ignoreErrors = options.ignoreErrors
+
+    function next() {
+        var query = createQuery()
+
+        return query.limit(batchLimit).find().then( results => {
+            if (results.length > 0) {
+                return Promise.map(results, (object) => {
+                    return performUpdate(object).catch( err => {
+                        if (ignoreErrors) {
+                            console.error('ignored', err)
+                        } else {
+                            throw err
+                        }
+                    })
+                }, {concurrency}).then(next)
+            }
+        })
+    }
+
+    return next()
+}
