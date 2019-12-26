@@ -297,11 +297,7 @@ AV.Cloud.define( "findDeclarables",async function(request){
                 await mapQuery.find().then(async function(maps){
                     for (const map of maps) {
                         if ((map.get("dest").get("owner").get("name") !== countryName) && (map.get("dest").get("warPending") === undefined)){
-    /*                        console.log("ownerName " + map.get("dest").get("owner").get("name"));
-                            console.log("countryName " + countryName);
-                            console.log("warPending " + map.get("dest").get("warPending"));*/
                             await countryCities.push(map.get("destCity"));
-                            // console.log(countryName + " push城市: " + map.get("destCity"))
                         }
                     };
                 });

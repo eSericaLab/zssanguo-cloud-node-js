@@ -26,14 +26,26 @@ AV.Cloud.define("trade", async request => {
         var money = price * amount;
         console.log("国家: " + country + " 货币: " + currency + " 总金额: " + money + " 剩余库存: " + inventory);
 
-        //修改报单
-        if (inventory >= amount){
-            console.log("减少报单剩余货量 " + amount + "件");
-            offer.increment("amount", -amount);
-        }else {
+        // 检查买家卖家是否为同一人
+        if (owner.getUsername() === trader.getUsername()){
+            console.log("买家卖家为同一人,终止交易");
+            return reject("买家卖家为同一人,终止交易");
+        }
+        //检查单价是否为正数
+        if (price <= 0){
+            console.log("价格小于等于0,终止交易");
+            return reject("价格小于等于0,终止交易");
+        }
+
+        //检查货物是否足够
+        if (inventory < amount){
             console.log("库存不足以满足交易量");
             return reject("库存不足以满足交易量");
         }
+
+        //修改报单
+        console.log("减少报单剩余货量 " + amount + "件");
+        offer.increment("amount", -amount);
 
         //修改交易人,报单主人
         if (action === "buy"){
