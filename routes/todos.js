@@ -1,8 +1,9 @@
 'use strict';
 var router = require('express').Router();
 var AV = require('leanengine');
-
 var Todo = AV.Object.extend('Todo');
+var mapData = AV.Object.extend('mapData');
+
 
 // TODO 查询 Todo 列表
 router.get('/', function(req, res, next) {
@@ -29,12 +30,15 @@ router.get('/', function(req, res, next) {
 
 // 新增 Todo 项目
 router.post('/', function(req, res, next) {
+  console.log(req.body);
   var content = req.body.content;
+  console.log(content);
   var todo = new Todo();
   todo.set('content', content);
   todo.save().then(function(todo) {
     res.redirect('/todos');
   }).catch(next);
 });
+
 
 module.exports = router;

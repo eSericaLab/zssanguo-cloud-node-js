@@ -1,17 +1,16 @@
 'use strict';
-
 var express = require('express');
+var cors = require('cors');
 var timeout = require('connect-timeout');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var AV = require('leanengine');
-
+var mapData = AV.Object.extend('mapData');
 // 加载云函数定义，你可以将云函数拆分到多个文件方便管理，但需要在主文件中加载它们
 require('./cloud');
-
 var app = express();
-
+app.use(cors());
 // 设置模板引擎
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -34,7 +33,23 @@ app.use(cookieParser());
 
 // 当用户使用http get method获取根目录的时候
 app.get('/', function(req, res) {
-  res.render('index', { currentTime: new Date() }); //render(index.ejs, <%= currentTime %>)
+/*  res.render('index', { currentTime: new Date() }); //render(index.ejs, <%= currentTime %>)*/
+  var query = new AV.Query(mapData);
+  query.descending('createdAt');
+  query.first().then(function (mapData){
+    res.json(mapData);
+  });
+});
+
+/*req的是mapData*/
+app.post('/', function(req,res,next) {
+  console.log(req.body);
+  var data = req.body.mapData;
+  var mapdata = new mapData();
+  mapdata.set('mapData', data);
+  mapdata.save().then(function(mapdata) {
+    res.json(mapdata);
+  }).catch(next);
 });
 
 // 可以将一类的路由单独保存在一个文件中
