@@ -86,3 +86,27 @@ function whatCurrency(country){
             return "huangMoney";
     }
 }
+
+AV.Cloud.define("findUser", async request => {
+    console.log("findUser函数被调用,开始执行");
+    var params = request.params;
+    console.log("user信息如下");
+    console.log(params);
+    var username = params.username;
+    console.log("用户名: " + username);
+
+    var query = new AV.Query('_User');
+
+    query.equalTo("username", username);
+
+    return query.find().then(function(users){
+        if (users.length !== 0) {
+            let user = users[0];
+            console.log("找到用户!");
+            console.log(user);
+            return Promise.resolve(user);
+        }
+        console.log("没找到用户!");
+        return Promise.reject("没有找到用户!");
+    });
+});
