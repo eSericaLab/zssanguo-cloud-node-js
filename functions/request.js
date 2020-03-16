@@ -110,3 +110,33 @@ AV.Cloud.define("findUser", async request => {
         return Promise.reject("没有找到用户!");
     });
 });
+
+AV.Cloud.define("redeemPromo", async request => {
+    console.log("findPromo函数被调用,开始执行");
+    var redeemer = request.currentUser;
+    console.log("申请兑换人为:");
+    console.log(redeemer.get("username"));
+    var params = request.params;
+    var promo = params.promo;
+    console.log("promo码如下");
+    console.log("promo: " + promo);
+
+    var query = new AV.Query('promo');
+
+    query.equalTo("promo", promo);
+
+    return query.find().then(function(promos){
+        if (promos.length !== 0) {
+            let promo = promos[0];
+            console.log("找到激活码,可兑换GOLD为:");
+            var gold = promo.get("gold");
+            console.log(gold);
+            redeemer.increment("gold", gold);
+            promo.destroy();
+            return Promise.all([redeemer.save(),promo.save()]);
+        }
+        console.log("没找到激活码!");
+        return Promise.reject("没找到激活码!");
+    });
+});
+
