@@ -243,7 +243,7 @@ AV.Cloud.define('declarableCities',function(request) {
     var query = new AV.Query('country');
     query.find().then(function (countries) {
         var countryProceeded = 0;
-         countries.forEach(function(country){
+        countries.forEach(function(country){
             country.set('declarables', []);
             countryProceeded++;
             if (countryProceeded === 4){
@@ -310,7 +310,114 @@ AV.Cloud.define( "findDeclarables",async function(request){
     return countryCities;
 });
 
+//occupiedCities 每天12点和24点 更新魏蜀吴黄巾的占据
+AV.Cloud.define('occupiedCities',function(request) {
+    console.log("开始执行occupiedCities任务");
+    //清空所有可宣战城池信息
+    var query = new AV.Query('country');
+    query.find().then(function (countries) {
+        var countryProceeded = 0;
+        countries.forEach(function(country){
+            country.set('occupied', []);
+            country.set('cityCount', 0);
+            country.set('iron', 0);
+            country.set('stone', 0);
+            country.set('wood', 0);
+            country.set('rice', 0);
 
+            countryProceeded++;
+            if (countryProceeded === 4){
+                AV.Object.saveAll(countries).then(async function(countries){
+                    console.log("开始重置各个国家的可宣战城池");
+
+                    var weiguo = AV.Object.createWithoutData('country', '5d2d9dc14415dc00089bd0fe');
+                    var shuguo = AV.Object.createWithoutData('country', '5d2d9dbd5dfe8c00082f979f');
+                    var wuguo = AV.Object.createWithoutData('country', '5d2d9dc54415dc00089bd114');
+                    var huangjin = AV.Object.createWithoutData('country', '5d2d9dc95dfe8c00082f97c8');
+
+                    var weiStats = await AV.Cloud.run("findOccupied", {countryName: 'weiguo'});
+                    var shuStats = await AV.Cloud.run("findOccupied", {countryName: 'shuguo'});
+                    var wuStats = await AV.Cloud.run("findOccupied", {countryName: 'wuguo'});
+                    var huangStats = await AV.Cloud.run("findOccupied", {countryName: 'huangjin'});
+
+                    weiguo.set('occupied', weiStats.cityList);
+                    shuguo.set('occupied', shuStats.cityList);
+                    wuguo.set('occupied', wuStats.cityList);
+                    huangjin.set('occupied', huangStats.cityList);
+
+                    weiguo.set('cityCount', weiStats.numOfCities);
+                    shuguo.set('cityCount', shuStats.numOfCities);
+                    wuguo.set('cityCount', wuStats.numOfCities);
+                    huangjin.set('cityCount', huangStats.numOfCities);
+
+                    weiguo.set('iron', weiStats.iron);
+                    shuguo.set('iron', shuStats.iron);
+                    wuguo.set('iron', wuStats.iron);
+                    huangjin.set('iron', huangStats.iron);
+
+                    weiguo.set('stone', weiStats.stone);
+                    shuguo.set('stone', shuStats.stone);
+                    wuguo.set('stone', wuStats.stone);
+                    huangjin.set('stone', huangStats.stone);
+
+                    weiguo.set('wood', weiStats.wood);
+                    shuguo.set('wood', shuStats.wood);
+                    wuguo.set('wood', wuStats.wood);
+                    huangjin.set('wood', huangStats.wood);
+
+                    weiguo.set('rice', weiStats.rice);
+                    shuguo.set('rice', shuStats.rice);
+                    wuguo.set('rice', wuStats.rice);
+                    huangjin.set('rice', huangStats.rice);
+
+
+                    //保存所有
+                    Promise.all([weiguo.save(), wuguo.save(), shuguo.save(), huangjin.save()]).then(function(){
+                        console.log("各个国家的occupiedCityList, cityCount, rice, iron, wood, stone重置完毕");
+                    });
+                });
+            }
+        });
+    });
+});
+
+AV.Cloud.define( "findOccupied",async function(request){
+    var countryStats = {
+        cityList : [],
+        numOfCities: 0,
+        iron: 0,
+        rice: 0,
+        stone: 0,
+        wood: 0
+    };
+    var countryName = request.params.countryName;
+    //获取国家obj
+    var countryObj;
+    var countryQuery = new AV.Query('country');
+    countryQuery.equalTo('name', countryName);
+    countryStats = await countryQuery.find().then(async function (countries) {
+        countryObj = countries[0];
+
+        //通过国家obj获取城池列表
+        var cityQuery = new AV.Query('city');
+        cityQuery.equalTo('owner', countryObj);
+        return await cityQuery.find().then(async function (cities) {
+            for (const city of cities) {
+                countryStats.cityList.push(city.get("name"));
+                countryStats.numOfCities+=1;
+                countryStats.iron+=city.get("iron");
+                countryStats.rice+=city.get("rice");
+                countryStats.stone+=city.get("stone");
+                countryStats.wood+=city.get("wood");
+
+            };
+            return new Promise(resolve => {resolve(countryStats);});
+        });
+    });
+
+    console.log(countryName + " 的countryStats为 : " + countryStats);
+    return countryStats;
+});
 function battleOpen(createQuery, performUpdate, options = {}) {
     var batchLimit = options.batchLimit || 1000
     var concurrency = options.concurrencyLimit || 3
