@@ -103,7 +103,6 @@ AV.Cloud.define("findUser", async request => {
         if (users.length !== 0) {
             let user = users[0];
             console.log("找到用户!");
-            console.log(user);
             return Promise.resolve(user);
         }
         console.log("没找到用户!");

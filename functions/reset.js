@@ -311,73 +311,53 @@ AV.Cloud.define( "findDeclarables",async function(request){
 });
 
 //occupiedCities 每天12点和24点 更新魏蜀吴黄巾的占据
-AV.Cloud.define('occupiedCities',function(request) {
+AV.Cloud.define('occupiedCities',async function(request) {
     console.log("开始执行occupiedCities任务");
-    //清空所有可宣战城池信息
-    var query = new AV.Query('country');
-    query.find().then(function (countries) {
-        var countryProceeded = 0;
-        countries.forEach(function(country){
-            country.set('occupied', []);
-            country.set('cityCount', 0);
-            country.set('iron', 0);
-            country.set('stone', 0);
-            country.set('wood', 0);
-            country.set('rice', 0);
+    console.log("重置各个国家的cityList, cityCount, rice, iron, stone");
 
-            countryProceeded++;
-            if (countryProceeded === 4){
-                AV.Object.saveAll(countries).then(async function(countries){
-                    console.log("开始重置各个国家的可宣战城池");
+    var weiguo = AV.Object.createWithoutData('country', '5d2d9dc14415dc00089bd0fe');
+    var shuguo = AV.Object.createWithoutData('country', '5d2d9dbd5dfe8c00082f979f');
+    var wuguo = AV.Object.createWithoutData('country', '5d2d9dc54415dc00089bd114');
+    var huangjin = AV.Object.createWithoutData('country', '5d2d9dc95dfe8c00082f97c8');
 
-                    var weiguo = AV.Object.createWithoutData('country', '5d2d9dc14415dc00089bd0fe');
-                    var shuguo = AV.Object.createWithoutData('country', '5d2d9dbd5dfe8c00082f979f');
-                    var wuguo = AV.Object.createWithoutData('country', '5d2d9dc54415dc00089bd114');
-                    var huangjin = AV.Object.createWithoutData('country', '5d2d9dc95dfe8c00082f97c8');
+    var weiStats = await AV.Cloud.run("findOccupied", {countryName: 'weiguo'});
+    var shuStats = await AV.Cloud.run("findOccupied", {countryName: 'shuguo'});
+    var wuStats = await AV.Cloud.run("findOccupied", {countryName: 'wuguo'});
+    var huangStats = await AV.Cloud.run("findOccupied", {countryName: 'huangjin'});
 
-                    var weiStats = await AV.Cloud.run("findOccupied", {countryName: 'weiguo'});
-                    var shuStats = await AV.Cloud.run("findOccupied", {countryName: 'shuguo'});
-                    var wuStats = await AV.Cloud.run("findOccupied", {countryName: 'wuguo'});
-                    var huangStats = await AV.Cloud.run("findOccupied", {countryName: 'huangjin'});
+    weiguo.set('occupied', weiStats.cityList);
+    shuguo.set('occupied', shuStats.cityList);
+    wuguo.set('occupied', wuStats.cityList);
+    huangjin.set('occupied', huangStats.cityList);
 
-                    weiguo.set('occupied', weiStats.cityList);
-                    shuguo.set('occupied', shuStats.cityList);
-                    wuguo.set('occupied', wuStats.cityList);
-                    huangjin.set('occupied', huangStats.cityList);
+    weiguo.set('cityCount', weiStats.numOfCities);
+    shuguo.set('cityCount', shuStats.numOfCities);
+    wuguo.set('cityCount', wuStats.numOfCities);
+    huangjin.set('cityCount', huangStats.numOfCities);
 
-                    weiguo.set('cityCount', weiStats.numOfCities);
-                    shuguo.set('cityCount', shuStats.numOfCities);
-                    wuguo.set('cityCount', wuStats.numOfCities);
-                    huangjin.set('cityCount', huangStats.numOfCities);
+    weiguo.set('iron', weiStats.iron);
+    shuguo.set('iron', shuStats.iron);
+    wuguo.set('iron', wuStats.iron);
+    huangjin.set('iron', huangStats.iron);
 
-                    weiguo.set('iron', weiStats.iron);
-                    shuguo.set('iron', shuStats.iron);
-                    wuguo.set('iron', wuStats.iron);
-                    huangjin.set('iron', huangStats.iron);
+    weiguo.set('stone', weiStats.stone);
+    shuguo.set('stone', shuStats.stone);
+    wuguo.set('stone', wuStats.stone);
+    huangjin.set('stone', huangStats.stone);
 
-                    weiguo.set('stone', weiStats.stone);
-                    shuguo.set('stone', shuStats.stone);
-                    wuguo.set('stone', wuStats.stone);
-                    huangjin.set('stone', huangStats.stone);
+    weiguo.set('wood', weiStats.wood);
+    shuguo.set('wood', shuStats.wood);
+    wuguo.set('wood', wuStats.wood);
+    huangjin.set('wood', huangStats.wood);
 
-                    weiguo.set('wood', weiStats.wood);
-                    shuguo.set('wood', shuStats.wood);
-                    wuguo.set('wood', wuStats.wood);
-                    huangjin.set('wood', huangStats.wood);
+    weiguo.set('rice', weiStats.rice);
+    shuguo.set('rice', shuStats.rice);
+    wuguo.set('rice', wuStats.rice);
+    huangjin.set('rice', huangStats.rice);
 
-                    weiguo.set('rice', weiStats.rice);
-                    shuguo.set('rice', shuStats.rice);
-                    wuguo.set('rice', wuStats.rice);
-                    huangjin.set('rice', huangStats.rice);
-
-
-                    //保存所有
-                    Promise.all([weiguo.save(), wuguo.save(), shuguo.save(), huangjin.save()]).then(function(){
-                        console.log("各个国家的occupiedCityList, cityCount, rice, iron, wood, stone重置完毕");
-                    });
-                });
-            }
-        });
+    //保存所有
+    Promise.all([weiguo.save(), wuguo.save(), shuguo.save(), huangjin.save()]).then(function(){
+        console.log("各个国家的CityList, cityCount, rice, iron, wood, stone重置完毕");
     });
 });
 
@@ -415,7 +395,18 @@ AV.Cloud.define( "findOccupied",async function(request){
         });
     });
 
-    console.log(countryName + " 的countryStats为 : " + countryStats);
+    countryStats.iron = parseFloat(countryStats.iron.toFixed(1));
+    countryStats.rice = parseFloat(countryStats.rice.toFixed(1));
+    countryStats.stone = parseFloat(countryStats.stone.toFixed(1));
+    countryStats.wood = parseFloat(countryStats.wood.toFixed(1));
+
+    console.log(countryName + " 的countryStats为 :");
+    console.log("cityList : " + countryStats.cityList);
+    console.log("numOfCities : " + countryStats.numOfCities);
+    console.log("iron : " + countryStats.iron);
+    console.log("rice : " + countryStats.rice);
+    console.log("stone : " + countryStats.stone);
+    console.log("wood : " + countryStats.wood);
     return countryStats;
 });
 function battleOpen(createQuery, performUpdate, options = {}) {
