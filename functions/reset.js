@@ -357,7 +357,7 @@ AV.Cloud.define('occupiedCities',async function(request) {
 
     //国家战斗加成 = 1 + (最大国家领土数量- 本国领土数量)/60
     var maxCities = Math.max(weiStats.numOfCities,shuStats.numOfCities,wuStats.numOfCities,huangStats.numOfCities);
-    weiguo.set('battleModifier', parseFloat((1 + (maxCities - weiStats.numOfCities)/60).toFixed(3));
+    weiguo.set('battleModifier', parseFloat((1 + (maxCities - weiStats.numOfCities)/60).toFixed(3)));
     shuguo.set('battleModifier', parseFloat((1 + (maxCities - shuStats.numOfCities)/60).toFixed(3)));
     wuguo.set('battleModifier', parseFloat((1 + (maxCities - wuStats.numOfCities)/60).toFixed(3)));
     huangjin.set('battleModifier', parseFloat((1 + (maxCities - huangStats.numOfCities)/60).toFixed(3)));
