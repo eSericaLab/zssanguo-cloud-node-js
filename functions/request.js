@@ -87,6 +87,7 @@ function whatCurrency(country){
     }
 }
 
+//搜索用户,记得一并返回用户头像
 AV.Cloud.define("findUser", async request => {
     console.log("findUser函数被调用,开始执行");
     var params = request.params;
@@ -98,11 +99,11 @@ AV.Cloud.define("findUser", async request => {
     var query = new AV.Query('_User');
 
     query.equalTo("username", username);
-
+    query.include('avatar');
     return query.find().then(function(users){
         if (users.length !== 0) {
             let user = users[0];
-            console.log("找到用户!");
+            console.log("找到用户,用户头像链接:");
             return Promise.resolve(user);
         }
         console.log("没找到用户!");
